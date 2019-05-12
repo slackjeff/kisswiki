@@ -1,0 +1,186 @@
+#!/usr/bin/env bash
+#=========================HEADER=====================================|
+#AUTOR
+# Jefferson 'Slackjeff' Rocha <root at slackjeff dot com dot br>
+#
+#KissWiki - Wiki Pessoal Local para usuários que gostam de
+#Simplicidade.
+#
+#====================================================================|
+
+#============================| VARS
+PRG='KissWiki'
+VERSION='0.1'
+EDITOR="${EDITOR:=nano}"           # Editor de texto
+DIR_HOME="${HOME}/kisswiki"        # Diretório principal
+EXT='txt'                          # Extensão Padrão
+
+# Cores
+red='\033[37;41;1m'
+blue='\033[37;44;1m'
+cyan='\033[36;1m'
+end='\033[m'
+
+#============================| TEST
+# A hierarquia principal está nula?
+[[ -z "$DIR_HOME" ]] && { echo "\$DIR_HOME NULL. STOP"; exit 1 ;}
+
+
+#============================| FUNCTIONS
+
+_HELP()
+{
+    cat <<EOF
++----------------+---------------------------------------+
+| LONG    | FAST | RESUME                                |
++----------------+---------------------------------------+
+| open    |  o   | Open Page                             |
+| create  |  c   | Create new anchor + page or only page |
+| list    |  l   | List anchor and page                  |
+| Version |  v   | View version                          |
+| help    |  h   | View this help                        |
++------------+-------------------------------------------+
+
+EOF
+}
+
+_LOGO() # Logo of KissWiki
+{   
+    echo -e "${cyan}"
+    cat <<'OF'
+  _  ___       __        ___ _    _
+ | |/ (_)___ __\ \      / (_) | _(_)
+ | ' /| / __/ __\ \ /\ / /| | |/ / |
+ | . \| \__ \__ \\ V  V / | |   <| |
+ |_|\_\_|___/___/ \_/\_/  |_|_|\_\_|
+OF
+    echo -e "${end}"
+    echo '          Help? Use help or ?'
+}
+
+# Criando Index principal
+_PAGE()
+{
+    local page="$1"
+    local anchor="$2"
+
+    [[ -z "$anchor" ]] && anchor="${DIR_HOME}"
+    cat >> "${anchor}/${page}.${EXT}" <<OF
+ Your ${page} Page!
+==========================================
+
+For link reference use:         &anchor:page
+Or only page in work directory: &page
+
+OF
+    return 0
+}
+
+# Verificador de entrada
+_VERIFY()
+{
+    local arg="$1" 
+
+    [[ "$arg" =~ [[:space:]]+ ]] && { echo "Space? No no, use _ or - Alternative.";return 1;}
+    if ! [[ "$arg" =~ ^[a-zA-Z0-9_]+:[a-zA-Z0-9_]+$ ]]; then
+        echo "You need to pass the anchor:page"
+        return 1
+    fi
+}
+
+_EXIST()
+{
+    local anchor="$1"
+    local page="$2"
+
+    if [[ ! -d "$anchor" ]]; then
+        echo -e "${red}Anchor: ${anchor}${end}\tDont Exist."
+        return 1
+    elif [[ ! -e "${anchor}/${page}.${EXT}" ]]; then                                                          echo -e "${red}Page: ${page}${end}\tDont Exist."
+        return 1
+    fi
+    return 0    
+}
+
+#============================| START
+clear # Limpe o buffer ;)
+pushd "${DIR_HOME}" &>/dev/null
+_LOGO # função
+if [[ ! -e "${DIR_HOME}" ]]; then # Diretório KissWiki existe?
+    echo -e "${red}For Inicialize your KissWiki home! write: start${end}"
+    key_start='1' # on
+fi
+
+while true; do
+    read -p $'\033[34;1m > \033[m' cmd1 cmd2
+    # Criação de estrutura da kissWiki
+    # Se não existir.
+    if [[ "$cmd1" = 'start' ]]; then
+        if [[ "$key_start" -eq '1' ]]; then
+            if [[ ! -e "${DIR_HOME}" ]]; then
+                 mkdir "$DIR_HOME" && echo "${DIR_HOME} Created!"
+                _PAGE "index" # Função para criar index.txt
+                echo "index.${EXT} Created!"
+                key_start='0' # Desligando a chave.
+                pushd "${DIR_HOME}" &>/dev/null
+            else
+                echo "${DIR_HOME} Exist ;)"
+            fi
+        fi
+    fi
+    
+    case $cmd1 in
+        #########################
+        # Criar Ancora + Página #
+        #########################
+        create|c)
+            if [[ "$cmd2" =~ .*:.* ]]; then
+                _VERIFY "$cmd2" || continue # Verificando se não está somente ':'
+                cmd2="${cmd2,,}" # Minusculo :)
+                anchor="${cmd2/:*/}"
+                page="${cmd2/*:/}"
+                if [[ ! -d "${anchor}" ]]; then
+                    mkdir "${anchor}"
+                    echo -e "${blue}Anchor:${end}\t'${anchor}' Created!"
+                fi
+                if [[ ! -e "${anchor}/${page}.${EXT}" ]]; then
+                    _PAGE "$page" "$anchor" && echo -e "${blue} Page: ${end}\t'$page' Created!"
+                else
+                    echo -e "${red}Page: $page Exist :O${end}"
+                fi
+            fi
+        ;;
+        
+        ################
+        # Abrir Página #
+        ###############
+        open|o)
+            if [[ "$cmd2" =~ .*:.* ]]; then
+                cmd2="${cmd2,,}" # Minusculo
+                anchor="${cmd2/:*/}"
+                page="${cmd2/*:/}"
+                # Nulo?
+                if [[ -z "$anchor" ]]; then
+                    echo -e "Your need pass anchor, example ${blue}anchor:page${end}" 
+                    continue
+                elif [[ -z "$page" ]]; then
+                    echo -e "You need pass page, example ${blue}anchor:page${end}"
+                    continue
+                fi
+                
+                # Existe ancora e página?
+                _EXIST "$anchor" "$page" || continue
+                less "${anchor}/${page}.${EXT}"
+           fi
+        ;;
+
+        #WORK        
+        list|l)
+            #_EXIST "$anchor" "$page" || continue
+            echo "Work."
+        ;;
+        
+        version|v) echo "${PRG} Version ${VERSION}" ;;
+        help|?) _HELP ;;
+    esac
+done # Loop principal
