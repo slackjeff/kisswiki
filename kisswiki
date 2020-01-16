@@ -6,11 +6,16 @@
 #KissWiki - Wiki Pessoal Local para usuários que gostam de
 #Simplicidade.
 #
+#CHANGELOG
+# ------ 16/01/2020
+# * Removido alguns bugs como abrir documento e criar.
+# * Adicionado funcionalidade para listagem que estava em
+#   construção.
 #====================================================================|
 
 #============================| VARS
 PRG='KissWiki'
-VERSION='0.1'
+VERSION='0.2'
 EDITOR="${EDITOR:=nano}"           # Editor de texto
 DIR_HOME="${HOME}/kisswiki"        # Diretório principal
 EXT='txt'                          # Extensão Padrão
@@ -24,7 +29,6 @@ end='\033[m'
 #============================| TEST
 # A hierarquia principal está nula?
 [[ -z "$DIR_HOME" ]] && { echo "\$DIR_HOME NULL. STOP"; exit 1 ;}
-
 
 #============================| FUNCTIONS
 
@@ -45,7 +49,7 @@ EOF
 }
 
 _LOGO() # Logo of KissWiki
-{   
+{
     echo -e "${cyan}"
     cat <<'OF'
   _  ___       __        ___ _    _
@@ -79,13 +83,19 @@ OF
 # Verificador de entrada
 _VERIFY()
 {
-    local arg="$1" 
+    local arg="$1"
 
     [[ "$arg" =~ [[:space:]]+ ]] && { echo "Space? No no, use _ or - Alternative.";return 1;}
     if ! [[ "$arg" =~ ^[a-zA-Z0-9_]+:[a-zA-Z0-9_]+$ ]]; then
         echo "You need to pass the anchor:page"
         return 1
     fi
+}
+
+_LIST()
+{
+    pushd ${DIR_HOME} &>/dev/null
+    tree
 }
 
 _EXIST()
@@ -96,10 +106,11 @@ _EXIST()
     if [[ ! -d "$anchor" ]]; then
         echo -e "${red}Anchor: ${anchor}${end}\tDont Exist."
         return 1
-    elif [[ ! -e "${anchor}/${page}.${EXT}" ]]; then                                                          echo -e "${red}Page: ${page}${end}\tDont Exist."
+    elif [[ ! -e "${anchor}/${page}.${EXT}" ]]; then
+        echo -e "${red}Page: ${page}${end}\tDont Exist."
         return 1
     fi
-    return 0    
+    return 0
 }
 
 #============================| START
@@ -112,7 +123,7 @@ if [[ ! -e "${DIR_HOME}" ]]; then # Diretório KissWiki existe?
 fi
 
 while true; do
-    read -p $'\033[34;1m > \033[m' cmd1 cmd2
+    read -ep $'\033[34;1m > \033[m' cmd1 cmd2
     # Criação de estrutura da kissWiki
     # Se não existir.
     if [[ "$cmd1" = 'start' ]]; then
@@ -128,12 +139,15 @@ while true; do
             fi
         fi
     fi
-    
+
     case $cmd1 in
         #########################
         # Criar Ancora + Página #
         #########################
         create|c)
+            if ! [[ "$cmd2" =~ .*:.* ]]; then
+                echo -e "The correct way is: ${red}anchor${end}:${red}page${end}. Consult help or h."
+            fi
             if [[ "$cmd2" =~ .*:.* ]]; then
                 _VERIFY "$cmd2" || continue # Verificando se não está somente ':'
                 cmd2="${cmd2,,}" # Minusculo :)
@@ -146,11 +160,10 @@ while true; do
                 if [[ ! -e "${anchor}/${page}.${EXT}" ]]; then
                     _PAGE "$page" "$anchor" && echo -e "${blue} Page: ${end}\t'$page' Created!"
                 else
-                    echo -e "${red}Page: $page Exist :O${end}"
+                    echo -e "${red}Page: $page Exist.${end}"
                 fi
             fi
         ;;
-        
         ################
         # Abrir Página #
         ###############
@@ -161,25 +174,27 @@ while true; do
                 page="${cmd2/*:/}"
                 # Nulo?
                 if [[ -z "$anchor" ]]; then
-                    echo -e "Your need pass anchor, example ${blue}anchor:page${end}" 
+                    echo -e "You need pass anchor, example ${blue}anchor:page${end}"
                     continue
                 elif [[ -z "$page" ]]; then
-                    echo -e "You need pass page, example ${blue}anchor:page${end}"
+                    echo -e "You need pass page, example ${red}anchor:page${end}"
                     continue
                 fi
-                
                 # Existe ancora e página?
                 _EXIST "$anchor" "$page" || continue
-                less "${anchor}/${page}.${EXT}"
+                $EDITOR "${anchor}/${page}.${EXT}"
+           else
+                echo -e "Need pass: ${red}anchor:page${end} for open archive. Consult help or h."
+                continue
            fi
         ;;
 
-        #WORK        
+        ########################
+        # Listagem de páginas. #
+        ########################
         list|l)
-            #_EXIST "$anchor" "$page" || continue
-            echo "Work."
+            _LIST
         ;;
-        
         version|v) echo "${PRG} Version ${VERSION}" ;;
         help|?) _HELP ;;
     esac
